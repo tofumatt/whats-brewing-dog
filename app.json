@@ -1,0 +1,6 @@
+{
+  "name": "What's Brewing at BrewDog",
+  "description": "A Node.js BrewDog scraper",
+  "repository": "https://github.com/tofumatt/whats-brewing-dog",
+  "keywords": ["node", "express", "static"]
+}
