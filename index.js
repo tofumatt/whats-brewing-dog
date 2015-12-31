@@ -162,7 +162,7 @@ app.get('/:country/:pub.json', function(req, res) {
   });
 });
 
-var PORT = process.env.WBD_PORT || '8080';
+var PORT = process.env.REDIS_URL ? '80' : '8080';
 
 app.listen(PORT);
 console.log('App running on port ' + PORT);
