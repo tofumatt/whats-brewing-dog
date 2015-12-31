@@ -1,7 +1,7 @@
 var cheerio = require('cheerio');
 var express = require('express');
 var redis = require('redis');
-var redisClient = redis.createClient();
+var redisClient = redis.createClient(process.env.REDIS_URL);
 var request = require('request');
 
 var BREW_TYPE_MAPPING = {
