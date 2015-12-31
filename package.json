@@ -1,0 +1,26 @@
+{
+  "name": "whats-brewing-dog",
+  "version": "0.1.0",
+  "description": "An app to fetch and serve BrewDog beers on tap.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tofumatt/whats-brewing-dog.git"
+  },
+  "author": "tofumatt",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/tofumatt/whats-brewing-dog/issues"
+  },
+  "homepage": "https://github.com/tofumatt/whats-brewing-dog#readme",
+  "dependencies": {
+    "cheerio": "^0.19.0",
+    "express": "^4.13.3",
+    "redis": "^2.4.2",
+    "request": "^2.67.0"
+  }
+}
