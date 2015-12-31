@@ -1,5 +1,6 @@
 var cheerio = require('cheerio');
 var express = require('express');
+var htmlEntities = require('html-entities');
 var redis = require('redis');
 var redisClient = redis.createClient(process.env.REDIS_URL);
 var request = require('request');
@@ -20,9 +21,10 @@ var app = express();
  */
 function getBreweryAndStrength(brew) {
   var brewWithData = {};
+  var entities = new htmlEntities.AllHtmlEntities();
   var isBrewDog = false;
 
-  var brewMatches = brew.match(/(.*) - (.*) (\d+\.?\d*%)/);
+  var brewMatches = entities.decode(brew).match(/(.*) - (.*) (\d+\.?\d*%)/);
   if (!brewMatches) {
     brewMatches = brew.match(/(.*) (\d+\.?\d*%)/);
     isBrewDog = true;
@@ -82,7 +84,6 @@ function loadBrewsByType(brewList) {
   // Brutely check through each brew type.
   Object.keys(brews).forEach(function(brewType) {
     brewList.forEach(function(item, index) {
-      // console.log(brewType, ranges, ranges[brewType]);
       if (ranges[brewType] &&
           index >= ranges[brewType][0] && index <= ranges[brewType][1]) {
         brews[brewType].push(getBreweryAndStrength(item));
