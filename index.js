@@ -136,13 +136,18 @@ app.get('/:country/:pub.json', function(req, res) {
 
       request(url, function(err, response, html) {
         if (err) {
-          return res.end('Failure');
+          res.send({ error: 'Unknown error' });;
+          return res.end();
+        }
+
+        if (response.statusCode !== 200) {
+          res.send({ error: 'Pub not found' });
+          return res.end();
         }
 
         var $ = cheerio.load(html);
 
         var onTapHTML = $('.onTapInfo .barText');
-        console.log(onTapHTML.html());
 
         var beerData = normalizeOnTapData(onTapHTML.html());
 
@@ -153,7 +158,8 @@ app.get('/:country/:pub.json', function(req, res) {
         });
         redisClient.set(redisKey, jsonToSave);
 
-        res.end(JSON.stringify(beerData));
+        res.send(beerData);
+        res.end();
       });
     } else {
       // We have cached data; send it across the wire!
