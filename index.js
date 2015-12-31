@@ -175,7 +175,7 @@ app.get('/:country/:pub.json', function(req, res) {
 
       request(url, function(err, response, html) {
         if (err) {
-          res.send({ error: err });;
+          res.send({ error: err });
           return res.end();
         }
 
