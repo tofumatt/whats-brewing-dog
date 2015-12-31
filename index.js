@@ -5,10 +5,10 @@ var redisClient = redis.createClient();
 var request = require('request');
 
 var BREW_TYPE_MAPPING = {
-  'BREWDOG DRAFT': 'brewDogBeers',
-  'Crafty Devil Takeover': 'craftyDevilTakeover',
-  'GUEST DRAFT': 'guestBeers',
-  'CIDER': 'ciders',
+  'brewdog draft': 'brewDogBeers',
+  'cider': 'ciders',
+  'crafty devil takeover': 'craftyDevilTakeover',
+  'guest draft': 'guestBeers',
 };
 
 var TIME_TO_EXPIRE = 21600; // six hours
@@ -42,9 +42,8 @@ function getRanges(brewList) {
   var ranges = {};
 
   brewList.forEach(function(item, index) {
-    var brewType = item.match(/-\W?(.*)\W?-/);
-    if (brewType) {
-      brewType = brewType[1].trim();
+    if (!item.match('%')) {
+      var brewType = item.replace(/-/g, '').trim().toLowerCase();
       ranges[BREW_TYPE_MAPPING[brewType]] = index + 1;
 
       if (index !== 0) {
@@ -56,7 +55,11 @@ function getRanges(brewList) {
   });
 
   var finalKey = Object.keys(ranges)[Object.keys(ranges).length - 1];
-  ranges[finalKey] = [ranges[finalKey], Object.keys(brewList).length - 1];
+  if (finalKey) {
+    ranges[finalKey] = [ranges[finalKey], Object.keys(brewList).length - 1];
+  } else {
+    delete ranges[finalKey];
+  }
 
   return ranges;
 }
@@ -79,7 +82,9 @@ function loadBrewsByType(brewList) {
   // Brutely check through each brew type.
   Object.keys(brews).forEach(function(brewType) {
     brewList.forEach(function(item, index) {
-      if (index >= ranges[brewType][0] && index <= ranges[brewType][1]) {
+      // console.log(brewType, ranges, ranges[brewType]);
+      if (ranges[brewType] &&
+          index >= ranges[brewType][0] && index <= ranges[brewType][1]) {
         brews[brewType].push(getBreweryAndStrength(item));
       }
     });
@@ -123,6 +128,8 @@ app.get('/:country/:pub.json', function(req, res) {
       reply = JSON.parse(reply);
     }
 
+    reply = false;
+
     // No cached data exists or it's outdated; fetch new data!
     if (!reply || reply.expiryTime < now) {
       var url = 'https://www.brewdog.com/bars/' + country + '/' + pub;
@@ -135,6 +142,7 @@ app.get('/:country/:pub.json', function(req, res) {
         var $ = cheerio.load(html);
 
         var onTapHTML = $('.onTapInfo .barText');
+        console.log(onTapHTML.html());
 
         var beerData = normalizeOnTapData(onTapHTML.html());
 
