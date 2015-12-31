@@ -20,19 +20,34 @@ var app = express();
  * Parse the name of the brewery from a guest ale (otherwise it's BrewDog).
  */
 function getBreweryAndStrength(brew) {
+  var brewMatches;
   var brewWithData = {};
   var entities = new htmlEntities.AllHtmlEntities();
-  var isBrewDog = false;
+  brew = entities.decode(brew).trim();
 
-  var brewMatches = entities.decode(brew).match(/(.*) - (.*) (\d+\.?\d*%)/);
-  if (!brewMatches) {
-    brewMatches = brew.match(/(.*) (\d+\.?\d*%)/);
-    isBrewDog = true;
+  // Look for a less likely format first; this usually crops up on the Two Bit
+  // bar where they serve only guest brews and format things weirdly.
+  brewMatches = brew.match(/(.*) - (\d+\.?\d*%) - (.*)/);
+  if (brewMatches) {
+    brewWithData.brewery = brewMatches[3].trim();
+    brewWithData.name = brewMatches[1].trim();
+    brewWithData.strength = brewMatches[2];
+  } else {
+    brewMatches = brew.match(/(.*) - (.*) (\d+\.?\d*%)/);
+
+    if (brewMatches) {
+      brewWithData.brewery = brewMatches[1].trim();
+      brewWithData.name = brewMatches[2].trim();
+      brewWithData.strength = brewMatches[3];
+    }
   }
 
-  brewWithData.brewery = isBrewDog ? 'BrewDog' : brewMatches[1].trim();
-  brewWithData.name = isBrewDog ? brewMatches[1].trim() : brewMatches[2].trim();
-  brewWithData.strength = isBrewDog ? brewMatches[2] : brewMatches[3];
+  if (!brewMatches) {
+    brewMatches = brew.match(/(.*) (\d+\.?\d*%)/);
+    brewWithData.brewery = 'BrewDog';
+    brewWithData.name = brewMatches[1].trim();
+    brewWithData.strength = brewMatches[2];
+  }
 
   return brewWithData;
 }
@@ -63,6 +78,10 @@ function getRanges(brewList) {
     delete ranges[finalKey];
   }
 
+  if (!Object.keys(ranges).length) {
+    ranges = null;
+  }
+
   return ranges;
 }
 
@@ -81,15 +100,34 @@ function loadBrewsByType(brewList) {
 
   var ranges = getRanges(brewList);
 
-  // Brutely check through each brew type.
-  Object.keys(brews).forEach(function(brewType) {
-    brewList.forEach(function(item, index) {
-      if (ranges[brewType] &&
-          index >= ranges[brewType][0] && index <= ranges[brewType][1]) {
-        brews[brewType].push(getBreweryAndStrength(item));
+  if (ranges) {
+    // Brutely check through each brew type.
+    Object.keys(brews).forEach(function(brewType) {
+      brewList.forEach(function(item, index) {
+        if (ranges[brewType] &&
+            index >= ranges[brewType][0] && index <= ranges[brewType][1]) {
+          brews[brewType].push(getBreweryAndStrength(item));
+        }
+      });
+    });
+  } else {
+    // If no ranges are available; we need to parse things based on the brewery
+    // data.
+    brewList.forEach(function(item) {
+      var brewData = getBreweryAndStrength(item);
+      if (brewData.brewery === 'BrewDog') {
+        brews.brewDogBeers.push(brewData);
+      } else {
+        // This is a quick hack to deal with ciders, which would otherwise get
+        // lumped into guest ales at https://www.brewdog.com/bars/uk/two-bit.
+        if (brewData.name.match(/cider/i)) {
+          brews.ciders.push(brewData);
+        } else {
+          brews.guestBeers.push(brewData);
+        }
       }
     });
-  });
+  }
 
   return brews;
 }
@@ -137,7 +175,7 @@ app.get('/:country/:pub.json', function(req, res) {
 
       request(url, function(err, response, html) {
         if (err) {
-          res.send({ error: 'Unknown error' });;
+          res.send({ error: err });;
           return res.end();
         }
 
