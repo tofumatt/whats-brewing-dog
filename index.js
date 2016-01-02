@@ -133,6 +133,45 @@ function loadBrewsByType(brewList) {
 }
 
 /*
+ * Get all BrewDog locations based on raw HTML from site sidebar.
+ *
+ * Right now simply offered as an API, but in the future we can use this to
+ * validate pub locations.
+ *
+ * HACK: Right now we hardcode group 0 as being UK and group 1 as being
+ * international.
+ */
+function getLocationData(rawLocationsHTML) {
+  var $ = cheerio.load(rawLocationsHTML);
+
+  var groups = $('.sidebar > .sideNav .sideNav');
+
+  var ukBars = groups.eq(0).find('li a');
+  var intlBars = groups.eq(1).find('li a');
+
+  var locations = {
+    uk: [],
+    international: [],
+  };
+  ukBars.each(function() {
+    locations.uk.push({
+      name: $(this).text().trim(),
+      slug: $(this).attr('href').split('/bars/uk/')[1],
+      url: 'https://www.brewdog.com' + $(this).attr('href'),
+    });
+  });
+  intlBars.each(function() {
+    locations.international.push({
+      name: $(this).text().trim(),
+      slug: $(this).attr('href').split('/bars/worldwide/')[1],
+      url: 'https://www.brewdog.com' + $(this).attr('href'),
+    });
+  });
+
+  return locations;
+}
+
+/*
  * Normalise HTML string into a usable object of tap data.
  *
  * We get a big dump of HTML from the web page; this processes out whitespace
@@ -150,6 +189,54 @@ function normalizeOnTapData(string) {
   return brews;
 }
 
+app.get('/locations.json', function(req, res) {
+  var redisKey = 'locations';
+  // First we'll check for cached data; we cache locations for a long time
+  // (24 hours).
+  redisClient.get(redisKey, function(err, reply) {
+    if (err) {
+      res.end('Redis failure');
+    }
+
+    var now = new Date().getTime();
+
+    if (reply) {
+      reply = JSON.parse(reply);
+    }
+
+    reply = false;
+
+    // No cached data exists or it's outdated; fetch new data!
+    if (!reply || reply.expiryTime < now) {
+      var url = 'https://www.brewdog.com/bars';
+
+      request(url, function(err, response, html) {
+        if (err) {
+          res.send({ error: err });
+          return res.end();
+        }
+
+        var locationsData = getLocationData(html);
+
+        // 24 hours.
+        var expiryTime = new Date().getTime() + (TIME_TO_EXPIRE * 4 * 2);
+        // var jsonToSave = JSON.stringify({
+        //   expiryTime: expiryTime,
+        //   locations: locationsData,
+        // });
+        // redisClient.set(redisKey, jsonToSave);
+
+        res.send(locationsData);
+        res.end();
+      });
+    } else {
+      // We have cached data; send it across the wire!
+      res.end(JSON.stringify(reply.locationsData));
+    }
+  });
+
+});
+
 app.get('/:country/:pub.json', function(req, res) {
   var country = req.params.country;
   var pub = req.params.pub;
@@ -166,8 +253,6 @@ app.get('/:country/:pub.json', function(req, res) {
     if (reply) {
       reply = JSON.parse(reply);
     }
-
-    reply = false;
 
     // No cached data exists or it's outdated; fetch new data!
     if (!reply || reply.expiryTime < now) {
