@@ -1,26 +1,32 @@
+var packageJSON = require('./package.json');
+
 var gulp = require('gulp');
-// var util = require('gulp-util');
 var autoprefixer = require('gulp-autoprefixer');
+var gls = require('gulp-live-server');
 var sass = require('gulp-sass');
 var sourcemaps = require('gulp-sourcemaps');
-// var coffee = require('gulp-coffee');
 
 var paths = {
-  // scripts: {
-  //   src:  'src/coffee/**/*.coffee',
-  //   dest: 'public/javascripts'
-  // },
   styles: {
     src: 'src/sass/**/*.scss',
     dest: 'public/stylesheets',
   },
 };
 
-// gulp.task('scripts', function() {
-//   return gulp.src(paths.scripts.src)
-//     .pipe(coffee())
-//     .pipe(gulp.dest(paths.scripts.dest));
-// });
+gulp.task('serve', function() {
+  var server = gls.new(packageJSON.main);
+  server.start();
+
+  // Use gulp.watch to trigger server actions (notify, start or stop)
+  gulp.watch(['public/**/*.css', 'public/**/*.html'], function(file) {
+    server.notify.apply(server, [file]);
+  });
+
+  // Restart the server.
+  gulp.watch(packageJSON.main, function() {
+    server.start.bind(server)();
+  });
+});
 
 gulp.task('styles', function() {
   return gulp.src(paths.styles.src)
@@ -41,4 +47,4 @@ gulp.task('watch', function() {
   gulp.watch(paths.styles.src, ['styles']);
 });
 
-gulp.task('default', ['styles', 'watch']);
+gulp.task('default', ['styles', 'serve', 'watch']);
