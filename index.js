@@ -15,6 +15,7 @@ var BREW_TYPE_MAPPING = {
 var TIME_TO_EXPIRE = 21600; // six hours
 
 var app = express();
+app.use(express.static(__dirname + '/public'));
 
 /*
  * Parse the name of the brewery from a guest ale (otherwise it's BrewDog).
@@ -166,8 +167,6 @@ app.get('/:country/:pub.json', function(req, res) {
     if (reply) {
       reply = JSON.parse(reply);
     }
-
-    reply = false;
 
     // No cached data exists or it's outdated; fetch new data!
     if (!reply || reply.expiryTime < now) {
